@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Project specific
+templates/
+screenshots/
+debug_frames/
+*.png
+*.jpg
+*.bmp
+!assets/*.png
+!assets/*.jpg
+
+# Secrets / credentials
+.env
+config/credentials.yaml
+
+# Logs
+logs/
+*.log

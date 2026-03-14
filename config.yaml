@@ -1,0 +1,95 @@
+# ==========================================
+# MapleBot Configuration
+# All positions calibrated for MapleRoyals 1024x768 windowed
+# ==========================================
+
+window:
+  title: "MapleRoyals"
+  x: 0
+  y: 0
+  width: 1024
+  height: 768
+
+# -------------------------------------------
+# Key bindings (must match in-game key config)
+# -------------------------------------------
+keys:
+  attack: "ctrl"          # Basic attack / main skill
+  loot: "z"               # Pick up items
+  jump: "alt"             # Jump
+  pot_hp: "delete"        # HP potion
+  pot_mp: "end"           # MP potion
+  # Skill slots (set these to match your in-game key layout)
+  skill_1: "shift"        # Main AoE (e.g., Chain Lightning)
+  skill_2: "a"            # Secondary skill
+  skill_3: "s"            # Tertiary skill
+  # Buff keys
+  buff_1: "f1"            # Magic Guard
+  buff_2: "f2"            # Meditation
+  buff_3: "f3"            # Booster / other buff
+  buff_4: "f4"            # Extra buff slot
+
+# -------------------------------------------
+# Thresholds — triggers for auto-actions
+# -------------------------------------------
+thresholds:
+  hp_pot: 55              # Use HP pot when below this %
+  mp_pot: 30              # Use MP pot when below this %
+  loot_hp: 70             # Only loot when HP is above this %
+  safe_hp: 20             # Emergency: spam pot if below this %
+
+# -------------------------------------------
+# Timers (seconds)
+# -------------------------------------------
+timers:
+  buff_interval: 180      # Rebuff every 3 minutes
+  loot_interval: 8        # Loot sweep every 8 seconds
+  capture_interval: 0.15  # Screen capture rate (~6-7 FPS)
+  pot_cooldown: 1.2       # Min time between pot uses
+  llm_check_interval: 30  # LLM sanity check every 30s
+  attack_delay: 0.35      # Base delay between attacks
+
+# -------------------------------------------
+# Grinding pattern
+# -------------------------------------------
+grinding:
+  # Platform patrol: walk back and forth
+  walk_duration_min: 1.5  # Min seconds walking one direction
+  walk_duration_max: 3.5  # Max seconds walking one direction
+  attacks_per_spot: 3     # Attacks before moving
+  # Skills cooldowns (seconds) — 0 means spam freely
+  skill_1_cooldown: 0
+  skill_2_cooldown: 0
+  # Direction preference
+  start_direction: "right"
+
+# -------------------------------------------
+# Humanizer — anti-detection timing
+# -------------------------------------------
+humanizer:
+  enabled: true
+  # Random delay between actions (seconds)
+  delay_min: 0.04
+  delay_max: 0.18
+  # Occasional longer pause (thinking moments)
+  pause_chance: 0.03      # 3% chance per action cycle
+  pause_min: 0.5
+  pause_max: 2.0
+  # Periodic breaks
+  break_after_min: 45     # Minutes before first break
+  break_after_max: 90     # Max minutes before forced break
+  break_duration_min: 3   # Minutes
+  break_duration_max: 10  # Minutes
+  # Typing jitter — random ms added to key holds
+  key_jitter_ms: 15
+  # Movement variance
+  walk_jitter: 0.3        # ±seconds added to walk duration
+
+# -------------------------------------------
+# Logging
+# -------------------------------------------
+logging:
+  enabled: true
+  log_dir: "logs"
+  log_level: "INFO"       # DEBUG, INFO, WARNING, ERROR
+  screenshot_on_error: true
