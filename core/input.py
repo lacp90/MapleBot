@@ -122,25 +122,25 @@ def _sendinput_key(scan_code, extended=False, key_up=False):
 
 
 class InputSender:
-    """Sends keyboard inputs to MapleStory window."""
+    """Sends keyboard inputs to MapleStory window.
+    
+    Movement keys (arrows) use MemoryHook for true background operation.
+    All other keys use PostMessage (works in background natively).
+    """
 
     EXTENDED_KEYS = {"left", "right", "up", "down", "insert", "delete",
                      "home", "end", "pageup", "pagedown"}
 
-    # Keys that need pyautogui (PostMessage doesn't work for arrow keys)
-    SENDINPUT_KEYS = {"left", "right", "up", "down"}
-    _PYAG_KEYMAP = {"left": "left", "right": "right", "up": "up", "down": "down"}
+    # Keys that need memory hook (PostMessage doesn't work for arrow keys)
+    MOVEMENT_KEYS = {"left", "right", "up", "down"}
 
-    def __init__(self, hwnd):
+    def __init__(self, hwnd, memory_hook=None):
         self.hwnd = hwnd
-        # Focus game window ONCE at startup — never again
-        try:
-            import pyautogui
-            pyautogui.FAILSAFE = False
-            win32gui.SetForegroundWindow(hwnd)
-            print("[Input] Game window focused (one-time)")
-        except Exception:
-            pass
+        self.memory_hook = memory_hook  # MemoryHook instance for movement
+        if self.memory_hook and self.memory_hook.hooked:
+            print("[Input] MemoryHook active — TRUE background movement enabled!")
+        else:
+            print("[Input] No MemoryHook — movement requires focus (pyautogui fallback)")
 
     def key_down(self, key_name):
         """Press a key down (without releasing)."""
@@ -152,9 +152,12 @@ class InputSender:
         vk, scan = VK_MAP[key_name]
         extended = key_name in self.EXTENDED_KEYS
 
-        if key_name in self.SENDINPUT_KEYS:
-            import pyautogui
-            pyautogui.keyDown(self._PYAG_KEYMAP[key_name])
+        if key_name in self.MOVEMENT_KEYS:
+            if self.memory_hook and self.memory_hook.hooked:
+                self.memory_hook.press_key(key_name)
+            else:
+                import pyautogui
+                pyautogui.keyDown(key_name)
         else:
             lparam = _make_lparam(scan, key_up=False, extended=extended)
             win32gui.PostMessage(self.hwnd, win32con.WM_KEYDOWN, vk, lparam)
@@ -168,9 +171,12 @@ class InputSender:
         vk, scan = VK_MAP[key_name]
         extended = key_name in self.EXTENDED_KEYS
 
-        if key_name in self.SENDINPUT_KEYS:
-            import pyautogui
-            pyautogui.keyUp(self._PYAG_KEYMAP[key_name])
+        if key_name in self.MOVEMENT_KEYS:
+            if self.memory_hook and self.memory_hook.hooked:
+                self.memory_hook.release_key(key_name)
+            else:
+                import pyautogui
+                pyautogui.keyUp(key_name)
         else:
             lparam = _make_lparam(scan, key_up=True, extended=extended)
             win32gui.PostMessage(self.hwnd, win32con.WM_KEYUP, vk, lparam)
@@ -194,20 +200,22 @@ class InputSender:
             time.sleep(0.01)
 
     def hold_key(self, key_name, duration):
-        """
-        Hold a key for a specific duration.
-        Movement: pyautogui (only works when game is focused).
-        Other keys: PostMessage (works in background).
+        """Hold a key for a specific duration.
+        Movement: MemoryHook (true background) or pyautogui fallback.
+        Other keys: PostMessage (works regardless).
         """
         key_name = key_name.lower()
         if key_name not in VK_MAP:
             return
 
-        if key_name in self.SENDINPUT_KEYS:
-            import pyautogui
-            pyautogui.keyDown(self._PYAG_KEYMAP[key_name])
-            time.sleep(duration)
-            pyautogui.keyUp(self._PYAG_KEYMAP[key_name])
+        if key_name in self.MOVEMENT_KEYS:
+            if self.memory_hook and self.memory_hook.hooked:
+                self.memory_hook.hold_key(key_name, duration)
+            else:
+                import pyautogui
+                pyautogui.keyDown(key_name)
+                time.sleep(duration)
+                pyautogui.keyUp(key_name)
         else:
             vk, scan = VK_MAP[key_name]
             extended = key_name in self.EXTENDED_KEYS
