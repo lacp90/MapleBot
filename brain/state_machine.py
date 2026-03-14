@@ -30,6 +30,7 @@ class BotState(Enum):
     BREAK = auto()      # Humanizer break
     DEAD = auto()       # Character died
     RECOVERING = auto() # Handling recovery (unstick, dismiss popup)
+    TOWN_TRIP = auto()  # Going to town to sell/buy
     ERROR = auto()      # Something went wrong
 
 
@@ -92,6 +93,11 @@ class BotEngine:
         # Level-up handler (auto AP/SP allocation)
         from brain.level_up import LevelUpHandler
         self.level_up = LevelUpHandler(self.input, config)
+
+        # Town trip manager (sell items, buy pots)
+        from brain.town_trip import TownTripManager
+        self.town = TownTripManager(self.input, config, capture_window)
+        self._town_enabled = config.get("town_trip", {}).get("enabled", True)
 
         # State
         self.state = BotState.IDLE
@@ -254,6 +260,19 @@ class BotEngine:
                     self._log(f"[Sanity] Recommended: {check['action']}")
                     self._handle_recovery(check["action"])
                     continue
+
+            # Town trip check (sell items, buy pots)
+            if self._town_enabled and self.town.needs_town_trip():
+                self.state = BotState.TOWN_TRIP
+                self._log("[Engine] TOWN TRIP — selling items and restocking potions...")
+                self._log(f"[Engine] Loots since sell: {self.town.stats['items_looted_since_sell']}")
+                success = self.town.execute_town_trip(self.hwnd)
+                if success:
+                    self._log("[Engine] Town trip complete — resuming grinding")
+                else:
+                    self._log("[Engine] Town trip failed — resuming anyway")
+                self.state = BotState.GRINDING
+                continue
 
             # Chat monitor (check every 10 ticks to save CPU)
             if self._tick_count % 10 == 0:

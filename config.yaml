@@ -103,3 +103,12 @@ logging:
   log_dir: "logs"
   log_level: "INFO"       # DEBUG, INFO, WARNING, ERROR
   screenshot_on_error: true
+
+# -------------------------------------------
+# Town Trips — auto sell + restock potions
+# -------------------------------------------
+town_trip:
+  enabled: true
+  loot_threshold: 30        # Go to town after this many loots
+  pot_restock: 100          # Buy this many pots per type
+  min_trip_interval: 300    # Min seconds between town trips
