@@ -332,49 +332,60 @@ class BotEngine:
                 )
 
     def _grind_tick(self, pos=None, mobs=None):
-        """One grinding cycle: attack at current position, then move."""
-        # Attack combo at current position
-        self.attack.attack_combo()
+        """
+        Natural patrol pattern:
+          Walk 2-4s → Stop → Attack 2x → Loot → Flip direction
+          Every 6 ticks: change platform (jump/drop)
+        """
+        if not hasattr(self, "_patrol_tick"):
+            self._patrol_tick = 0
+        self._patrol_tick += 1
 
-        # Smart direction: move toward mobs if detected
-        if mobs and len(mobs) > 0:
-            left, right = self.mob_detector.get_mob_density_side()
-            if left > right:
-                self._direction = "left"
-            elif right > left:
-                self._direction = "right"
-            # Equal = keep current direction
-
-        # Smart direction: if at map edge, flip
-        if pos and pos.get("found"):
-            if pos["x"] > 0.85:  # Near right edge
-                self._direction = "left"
-            elif pos["x"] < 0.15:  # Near left edge
-                self._direction = "right"
-
-        # Humanizer: chance for random micro-movement
-        fidget = self.humanizer.random_micro_move()
-        if fidget:
-            direction, duration = fidget
-            self.input.hold_key(direction, duration)
-
-        # Move to next position
-        walk_time = random.uniform(self._walk_min, self._walk_max)
-        walk_time = self.humanizer.walk_duration(walk_time)
-
+        # === WALK to next spot ===
+        walk_time = random.uniform(2.0, 4.0)
         self.input.hold_key(self._direction, walk_time)
 
-        # Occasionally jump while walking for platforming
-        if random.random() < 0.15:
-            self.input.key_down(self._direction)
-            time.sleep(0.05)
-            self.input.press_key("alt", hold_time=0.06)
-            time.sleep(0.2)
-            self.input.key_up(self._direction)
+        # === STOP and ATTACK 2 times ===
+        for _ in range(2):
+            self.input.press_key("x", hold_time=random.uniform(0.08, 0.12))
+            time.sleep(random.uniform(0.5, 0.7))
 
-        # Flip direction (unless mob-directed)
-        if not mobs or len(mobs) == 0:
-            self._direction = "left" if self._direction == "right" else "right"
+        # === LOOT ===
+        self.loot.quick_loot()
+
+        # === ALWAYS flip direction (guarantees full patrol) ===
+        self._direction = "left" if self._direction == "right" else "right"
+
+        # === Every 6 ticks, change platform ===
+        if self._patrol_tick % 6 == 0:
+            if random.random() < 0.6:
+                self._jump_up()
+            else:
+                self._drop_down()
+
+    def _drop_down(self):
+        """Drop through a platform by pressing DOWN + JUMP."""
+        self.input.key_down("down")
+        time.sleep(0.05)
+        self.input.press_key("alt", hold_time=0.06)
+        time.sleep(0.1)
+        self.input.key_up("down")
+        time.sleep(0.3)
+
+    def _jump_up(self):
+        """Jump up to a higher platform or climb a rope/ladder."""
+        # First try jumping while moving (reach higher platform)
+        self.input.key_down(self._direction)
+        time.sleep(0.03)
+        self.input.press_key("alt", hold_time=0.08)
+        time.sleep(0.3)
+        self.input.key_up(self._direction)
+        time.sleep(0.2)
+
+        # Also try climbing (UP key for ropes/ladders)
+        if random.random() < 0.4:
+            self.input.hold_key("up", random.uniform(0.8, 1.5))
+            time.sleep(0.2)
 
     def _release_all_keys(self):
         """Safety: release all keys to prevent stuck keys."""

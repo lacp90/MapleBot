@@ -17,6 +17,14 @@ import os
 import time
 import threading
 import argparse
+import ctypes
+
+# CRITICAL: Set DPI awareness before any Win32 calls
+# Without this, all coordinates are wrong on 125%+ DPI displays
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-monitor DPI aware
+except Exception:
+    pass
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(__file__))

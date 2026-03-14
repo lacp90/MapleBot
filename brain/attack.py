@@ -3,13 +3,13 @@ MapleBot - Attack Rotation Engine
 Handles class-specific attack patterns for efficient grinding.
 Currently optimized for I/L Mage but designed to be extensible.
 
-I/L Mage rotation (low level):
-  - Spam basic attack (Ctrl) or Energy Bolt
-  - Use AoE skills when available (Cold Beam, Thunder Bolt, etc.)
-  
-I/L Mage rotation (mid level, 3rd job+):
-  - Chain Lightning spam (main AoE)
-  - Ice Strike / Thunder Spear for grouped mobs
+I/L Mage rotation (1st job, lvl 8-30):
+  - Spam Magic Claw (skill_1/Shift) — main attack skill
+  - Basic attack (Ctrl) only as fallback
+
+I/L Mage rotation (2nd job+):
+  - Thunder Bolt / Cold Beam (AoE)
+  - Chain Lightning / Ice Strike (3rd-4th job)
   - Blizzard on cooldown (ultimate)
 """
 
@@ -54,23 +54,21 @@ class AttackRotation:
         self._skill_count = 0
 
     def attack_once(self):
-        """Perform a single attack action."""
+        """Perform a single attack action — primarily Magic Claw (skill_1)."""
         now = time.time()
 
-        # Decide: use skill or basic attack
-        use_skill = False
+        # Magic Claw (skill_1) is the main attack for 1st job mage
+        # Use it ~90% of the time, basic attack only as rare fallback
+        use_skill = True
+        if self.skill_1_cd > 0 and (now - self._last_skill_1 < self.skill_1_cd):
+            use_skill = False  # Skill on cooldown, use basic
+        elif random.random() > 0.9:
+            use_skill = False  # 10% chance to use basic attack for variety
 
-        # Try skill_1 (main skill) if off cooldown
-        if self.skill_1_cd == 0 or (now - self._last_skill_1 >= self.skill_1_cd):
-            # Use main skill most of the time
-            if random.random() < 0.7:
-                use_skill = True
-                self.input.press_key(self.skill_1, hold_time=self._hold())
-                self._last_skill_1 = now
-                self._skill_count += 1
-            else:
-                self.input.press_key(self.attack_key, hold_time=self._hold())
-                self._attack_count += 1
+        if use_skill:
+            self.input.press_key(self.skill_1, hold_time=self._hold())
+            self._last_skill_1 = now
+            self._skill_count += 1
         else:
             self.input.press_key(self.attack_key, hold_time=self._hold())
             self._attack_count += 1

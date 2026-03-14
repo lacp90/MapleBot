@@ -14,7 +14,7 @@ window:
 # Character settings
 # -------------------------------------------
 character:
-  start_level: 7            # Current level when bot starts
+  start_level: 14            # Current level when bot starts
   class: "i/l mage"         # Class being played
   ap_stat: "int"            # Where to put all AP (int for mages)
   auto_ap: true             # Auto-assign AP on level up
@@ -24,13 +24,13 @@ character:
 # Key bindings (must match in-game key config)
 # -------------------------------------------
 keys:
-  attack: "ctrl"          # Basic attack / main skill
+  attack: "x"             # Magic Claw (main attack bound to X)
   loot: "z"               # Pick up items
   jump: "alt"             # Jump
   pot_hp: "v"             # HP potion
   pot_mp: "c"             # MP potion
   # Skill slots (set these to match your in-game key layout)
-  skill_1: "shift"        # Main AoE (e.g., Chain Lightning)
+  skill_1: "x"            # Magic Claw (same as attack — X key)
   skill_2: "a"            # Secondary skill
   skill_3: "s"            # Tertiary skill
   # Buff keys
@@ -43,7 +43,7 @@ keys:
 # Thresholds — triggers for auto-actions
 # -------------------------------------------
 thresholds:
-  hp_pot: 55              # Use HP pot when below this %
+  hp_pot: 60              # Use HP pot when below this %
   mp_pot: 30              # Use MP pot when below this %
   loot_hp: 70             # Only loot when HP is above this %
   safe_hp: 20             # Emergency: spam pot if below this %
@@ -57,7 +57,7 @@ timers:
   capture_interval: 0.15  # Screen capture rate (~6-7 FPS)
   pot_cooldown: 1.2       # Min time between pot uses
   llm_check_interval: 30  # LLM sanity check every 30s
-  attack_delay: 0.35      # Base delay between attacks
+  attack_delay: 0.6       # Base delay between attacks (Magic Claw animation ~0.6s)
 
 # -------------------------------------------
 # Grinding pattern

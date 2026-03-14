@@ -85,15 +85,62 @@ def _make_lparam(scan_code, key_up=False, extended=False):
     return lparam
 
 
-class InputSender:
-    """Sends keyboard inputs to MapleStory window in the background."""
+# ========================================
+# SendInput for movement keys
+# ========================================
+# PostMessage doesn't work for arrow keys in MapleRoyals.
+# SendInput sends real OS-level keyboard events.
 
-    # Extended keys that need the extended flag
+_INPUT_KEYBOARD = 1
+_KEYEVENTF_SCANCODE = 0x0008
+_KEYEVENTF_KEYUP = 0x0002
+_KEYEVENTF_EXTENDEDKEY = 0x0001
+
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", ctypes.c_ushort), ("wScan", ctypes.c_ushort),
+                ("dwFlags", ctypes.c_ulong), ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+class _INPUTUNION(ctypes.Union):
+    _fields_ = [("ki", _KEYBDINPUT)]
+
+class _INPUT(ctypes.Structure):
+    _fields_ = [("type", ctypes.c_ulong), ("ii", _INPUTUNION)]
+
+def _sendinput_key(scan_code, extended=False, key_up=False):
+    """Send a real keyboard event via SendInput."""
+    flags = _KEYEVENTF_SCANCODE
+    if extended:
+        flags |= _KEYEVENTF_EXTENDEDKEY
+    if key_up:
+        flags |= _KEYEVENTF_KEYUP
+    inp = _INPUT()
+    inp.type = _INPUT_KEYBOARD
+    inp.ii.ki.wScan = scan_code
+    inp.ii.ki.dwFlags = flags
+    ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+
+
+class InputSender:
+    """Sends keyboard inputs to MapleStory window."""
+
     EXTENDED_KEYS = {"left", "right", "up", "down", "insert", "delete",
                      "home", "end", "pageup", "pagedown"}
 
+    # Keys that need pyautogui (PostMessage doesn't work for arrow keys)
+    SENDINPUT_KEYS = {"left", "right", "up", "down"}
+    _PYAG_KEYMAP = {"left": "left", "right": "right", "up": "up", "down": "down"}
+
     def __init__(self, hwnd):
         self.hwnd = hwnd
+        # Focus game window ONCE at startup — never again
+        try:
+            import pyautogui
+            pyautogui.FAILSAFE = False
+            win32gui.SetForegroundWindow(hwnd)
+            print("[Input] Game window focused (one-time)")
+        except Exception:
+            pass
 
     def key_down(self, key_name):
         """Press a key down (without releasing)."""
@@ -104,9 +151,13 @@ class InputSender:
 
         vk, scan = VK_MAP[key_name]
         extended = key_name in self.EXTENDED_KEYS
-        lparam = _make_lparam(scan, key_up=False, extended=extended)
 
-        win32gui.PostMessage(self.hwnd, win32con.WM_KEYDOWN, vk, lparam)
+        if key_name in self.SENDINPUT_KEYS:
+            import pyautogui
+            pyautogui.keyDown(self._PYAG_KEYMAP[key_name])
+        else:
+            lparam = _make_lparam(scan, key_up=False, extended=extended)
+            win32gui.PostMessage(self.hwnd, win32con.WM_KEYDOWN, vk, lparam)
 
     def key_up(self, key_name):
         """Release a key."""
@@ -116,42 +167,28 @@ class InputSender:
 
         vk, scan = VK_MAP[key_name]
         extended = key_name in self.EXTENDED_KEYS
-        lparam = _make_lparam(scan, key_up=True, extended=extended)
 
-        win32gui.PostMessage(self.hwnd, win32con.WM_KEYUP, vk, lparam)
+        if key_name in self.SENDINPUT_KEYS:
+            import pyautogui
+            pyautogui.keyUp(self._PYAG_KEYMAP[key_name])
+        else:
+            lparam = _make_lparam(scan, key_up=True, extended=extended)
+            win32gui.PostMessage(self.hwnd, win32con.WM_KEYUP, vk, lparam)
 
     def press_key(self, key_name, hold_time=0.05):
-        """
-        Press and release a key with a natural hold duration.
-        
-        Args:
-            key_name: Key to press (e.g., "ctrl", "alt", "z", "f1")
-            hold_time: How long to hold the key (seconds). 
-                       Randomized slightly for humanization.
-        """
+        """Press and release a key with a natural hold duration."""
         actual_hold = hold_time + random.uniform(-0.01, 0.02)
-        actual_hold = max(0.02, actual_hold)  # minimum 20ms
-
+        actual_hold = max(0.02, actual_hold)
         self.key_down(key_name)
         time.sleep(actual_hold)
         self.key_up(key_name)
 
     def press_keys_combo(self, keys, hold_time=0.05):
-        """
-        Press multiple keys simultaneously (e.g., jump + direction).
-        
-        Args:
-            keys: List of key names to press together
-            hold_time: How long to hold
-        """
-        # Press all keys down
+        """Press multiple keys simultaneously."""
         for key in keys:
             self.key_down(key)
-            time.sleep(0.01)  # Small stagger for reliability
-
+            time.sleep(0.01)
         time.sleep(hold_time)
-
-        # Release all keys
         for key in reversed(keys):
             self.key_up(key)
             time.sleep(0.01)
@@ -159,15 +196,26 @@ class InputSender:
     def hold_key(self, key_name, duration):
         """
         Hold a key for a specific duration.
-        Useful for walking in a direction.
-        
-        Args:
-            key_name: Key to hold
-            duration: Seconds to hold
+        Movement: pyautogui (only works when game is focused).
+        Other keys: PostMessage (works in background).
         """
-        self.key_down(key_name)
-        time.sleep(duration)
-        self.key_up(key_name)
+        key_name = key_name.lower()
+        if key_name not in VK_MAP:
+            return
+
+        if key_name in self.SENDINPUT_KEYS:
+            import pyautogui
+            pyautogui.keyDown(self._PYAG_KEYMAP[key_name])
+            time.sleep(duration)
+            pyautogui.keyUp(self._PYAG_KEYMAP[key_name])
+        else:
+            vk, scan = VK_MAP[key_name]
+            extended = key_name in self.EXTENDED_KEYS
+            lparam_down = _make_lparam(scan, key_up=False, extended=extended)
+            lparam_up = _make_lparam(scan, key_up=True, extended=extended)
+            win32gui.PostMessage(self.hwnd, win32con.WM_KEYDOWN, vk, lparam_down)
+            time.sleep(duration)
+            win32gui.PostMessage(self.hwnd, win32con.WM_KEYUP, vk, lparam_up)
 
     def walk_right(self, duration=1.0):
         """Walk right for a duration."""
@@ -253,3 +301,56 @@ if __name__ == "__main__":
     print("\n[Test] Done! Check MapleRoyals to see if the character responded.")
     print("If nothing happened, the game might need to be in windowed mode")
     print("or the input method may need adjustment (SendMessage vs PostMessage).")
+
+
+# ===========================================================
+# Foreground Mouse Click Support (for UI buttons)
+# MapleStory's stat/skill window buttons require REAL mouse
+# clicks — PostMessage mouse events are ignored by the UI.
+# This uses pyautogui for reliable foreground clicks.
+# ===========================================================
+
+def foreground_click(hwnd, client_x, client_y, double=False):
+    """
+    Perform a REAL mouse click at (client_x, client_y) relative to game window.
+    Uses pyautogui for maximum reliability.
+    Coordinates are in 1024x768 client space.
+    
+    IMPORTANT: Do NOT resize the game window — MapleStory v62 stretches
+    and breaks if the window dimensions change.
+    """
+    try:
+        import pyautogui
+        pyautogui.FAILSAFE = False
+        pyautogui.PAUSE = 0.05
+
+        # Set DPI awareness so ClientToScreen returns physical pixel coords
+        # Without this, coordinates are wrong at 125%+ DPI scaling
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            pass  # Already set or not available
+
+        # Get client area screen position (do NOT move/resize window!)
+        pt = ctypes.wintypes.POINT(0, 0)
+        ctypes.windll.user32.ClientToScreen(hwnd, ctypes.byref(pt))
+
+        screen_x = pt.x + client_x
+        screen_y = pt.y + client_y
+
+        # Bring window to foreground
+        try:
+            win32gui.SetForegroundWindow(hwnd)
+        except Exception:
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+        time.sleep(0.1)
+
+        # Click with pyautogui (most reliable)
+        if double:
+            pyautogui.doubleClick(screen_x, screen_y)
+        else:
+            pyautogui.click(screen_x, screen_y)
+
+        time.sleep(0.15)
+    except Exception as e:
+        print(f"[Input] foreground_click failed: {e}")

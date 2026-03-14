@@ -139,91 +139,88 @@ class LevelUpHandler:
         """
         Allocate all available AP to INT.
         Opens stat window → clicks INT '+' button 5 times → closes.
-        
-        In MapleRoyals v62 stat window layout:
-        - S key opens the stat window
-        - The '+' buttons are on the right side of the window
-        - INT is the 4th stat (STR, DEX, INT, LUK)
-        - We need to click the '+' button next to INT
-        
-        Since we use PostMessage (background), we simulate:
-        1. Press 'S' to open stat window
-        2. Wait for window to appear
-        3. Click the INT '+' button AP times
-        4. Press 'S' to close
         """
-        # Open stat window
-        self.input.press_key("s", hold_time=0.05)
-        time.sleep(0.5)
+        try:
+            print(f"[LevelUp] Allocating {self._ap_per_level} AP → INT")
 
-        # Click INT '+' button 5 times (one for each AP)
-        for i in range(self._ap_per_level):
-            # INT '+' button position (approximate for v62 stat window)
-            # The stat window typically appears around (100, 200)
-            # INT is the 3rd row, '+' button is on the right
-            # These coordinates need calibration for exact position
-            self._click_stat_button("int")
-            time.sleep(random.uniform(0.15, 0.3))
+            # Open stat window
+            self.input.press_key("s", hold_time=0.05)
+            time.sleep(0.5)
 
-        # Close stat window
-        time.sleep(0.3)
-        self.input.press_key("s", hold_time=0.05)
-        time.sleep(0.3)
+            # Click INT '+' button 5 times (one for each AP)
+            for i in range(self._ap_per_level):
+                self._click_stat_button("int")
+                time.sleep(random.uniform(0.15, 0.3))
 
-        self._total_ap_allocated += self._ap_per_level
+            # Close stat window
+            time.sleep(0.3)
+            self.input.press_key("s", hold_time=0.05)
+            time.sleep(0.3)
+
+            self._total_ap_allocated += self._ap_per_level
+            print(f"[LevelUp] AP done! Total INT allocated: {self._total_ap_allocated}")
+        except Exception as e:
+            print(f"[LevelUp] AP allocation failed: {e}")
 
     def allocate_sp(self):
         """
         Allocate SP to the next skill in the build order.
         Opens skill window → clicks the correct skill's '+' button.
         """
-        job = self._get_current_job()
-        if not job:
-            return
+        try:
+            job = self._get_current_job()
+            if not job:
+                return
 
-        build = SKILL_BUILD_ORDER.get(job, {})
-        skills = build.get("skills", [])
+            build = SKILL_BUILD_ORDER.get(job, {})
+            skills = build.get("skills", [])
 
-        # Find what skill needs points next
-        target_skill = None
-        for skill_name, max_pts, _notes in skills:
-            current_pts = self._sp_tracker.get(skill_name, 0)
-            if current_pts < max_pts:
-                target_skill = skill_name
-                break
-
-        if not target_skill:
-            return
-
-        # Open skill window
-        self.input.press_key("k", hold_time=0.05)
-        time.sleep(0.5)
-
-        # Click '+' button for target skill (3 SP per level)
-        for i in range(self._sp_per_level):
-            current = self._sp_tracker.get(target_skill, 0)
-            target_max = None
-            for sn, mx, _ in skills:
-                if sn == target_skill:
-                    target_max = mx
+            # Find what skill needs points next
+            target_skill = None
+            for skill_name, max_pts, _notes in skills:
+                current_pts = self._sp_tracker.get(skill_name, 0)
+                if current_pts < max_pts:
+                    target_skill = skill_name
                     break
-            if target_max and current >= target_max:
-                # This skill is maxed, find next
+
+            if not target_skill:
+                return
+
+            print(f"[LevelUp] Allocating {self._sp_per_level} SP → {target_skill}")
+
+            # Open skill window
+            self.input.press_key("k", hold_time=0.05)
+            time.sleep(0.5)
+
+            # Click '+' button for target skill (3 SP per level)
+            for i in range(self._sp_per_level):
+                current = self._sp_tracker.get(target_skill, 0)
+                target_max = None
                 for sn, mx, _ in skills:
-                    if self._sp_tracker.get(sn, 0) < mx:
-                        target_skill = sn
+                    if sn == target_skill:
+                        target_max = mx
                         break
+                if target_max and current >= target_max:
+                    # This skill is maxed, find next
+                    for sn, mx, _ in skills:
+                        if self._sp_tracker.get(sn, 0) < mx:
+                            target_skill = sn
+                            print(f"[LevelUp] Skill maxed, switching to {target_skill}")
+                            break
 
-            self._click_skill_button(target_skill)
-            self._sp_tracker[target_skill] = self._sp_tracker.get(target_skill, 0) + 1
-            time.sleep(random.uniform(0.15, 0.3))
+                self._click_skill_button(target_skill)
+                self._sp_tracker[target_skill] = self._sp_tracker.get(target_skill, 0) + 1
+                time.sleep(random.uniform(0.15, 0.3))
 
-        # Close skill window
-        time.sleep(0.3)
-        self.input.press_key("k", hold_time=0.05)
-        time.sleep(0.3)
+            # Close skill window
+            time.sleep(0.3)
+            self.input.press_key("k", hold_time=0.05)
+            time.sleep(0.3)
 
-        self._total_sp_allocated += self._sp_per_level
+            self._total_sp_allocated += self._sp_per_level
+            print(f"[LevelUp] SP done! {target_skill} now at {self._sp_tracker.get(target_skill, 0)} pts")
+        except Exception as e:
+            print(f"[LevelUp] SP allocation failed: {e}")
 
     def handle_level_up(self, exp_current):
         """
@@ -263,66 +260,33 @@ class LevelUpHandler:
     def _click_stat_button(self, stat):
         """
         Click the '+' button for a specific stat in the stat window.
-        Uses keyboard shortcut approach since clicking pixels is fragile.
-        
-        In MapleRoyals v62, the stat window '+' buttons can be navigated:
-        - The window is opened with 'S'
-        - Each '+' is a clickable button
-        
-        For reliability, we use mouse clicks via PostMessage.
-        Stat window in v62 at default position has these '+' button locations:
+        Uses foreground_click (SendInput) — PostMessage doesn't work
+        on MapleStory's UI buttons.
         """
-        import win32gui
-        import win32con
-        import win32api
+        from core.input import foreground_click
 
-        # Stat window '+' button positions (calibrated from screenshot)
-        # Window: "CHARACTER STATS" panel
-        # Measured from game window at position (0,0), 1024x768
+        # Stat window '+' button positions (calibrated from live game, DPI-aware 1024x768)
+        # Measured 2026-03-14 with stat window at default position
         STAT_BUTTONS = {
-            "str": (467, 432),
-            "dex": (467, 452),
-            "int": (467, 472),
-            "luk": (467, 492),
+            "str": (390, 395),
+            "dex": (390, 413),
+            "int": (390, 432),
+            "luk": (390, 450),
         }
 
         if stat not in STAT_BUTTONS:
             return
 
         x, y = STAT_BUTTONS[stat]
-
-        # Click using PostMessage
-        lparam = win32api.MAKELONG(x, y)
-        win32gui.PostMessage(self.input.hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lparam)
-        time.sleep(0.05)
-        win32gui.PostMessage(self.input.hwnd, win32con.WM_LBUTTONUP, 0, lparam)
+        foreground_click(self.input.hwnd, x, y)
 
     def _click_skill_button(self, skill_name):
         """
         Click the '+' button for a specific skill in the skill window.
-        The skill window layout varies by job, but skills are listed top to bottom.
-        
-        For reliability, we use the UP/DOWN key approach:
-        Since skill window has a known layout, we can navigate.
-        
-        However the most reliable approach for v62 is direct mouse click
-        at the '+' position corresponding to the skill's row.
+        Uses foreground_click (SendInput) for real cursor movement.
         """
-        import win32gui
-        import win32con
-        import win32api
+        from core.input import foreground_click
 
-        # Skill window '+' button positions
-        # These vary by job and need calibration
-        # For 1st job, skill order from top:
-        # Energy Bolt, Improved MP Recovery, Improved MaxMP, Magic Claw, Magic Guard, Magic Armor
-
-        # Generic approach: skill window '+' buttons are in a column
-        # Each row is about 33px apart, starting around y=196
-        # The '+' button x position is around x=230 (relative to skill window)
-        # Skill window default position is around (400, 100)
-
-        # Calculate row based on skill name → index mapping
         job = self._get_current_job()
         skill_index = self._get_skill_index(skill_name, job)
         if skill_index < 0:
@@ -338,11 +302,7 @@ class LevelUpHandler:
 
         x = base_x
         y = base_y + (skill_index * row_height)
-
-        lparam = win32api.MAKELONG(x, y)
-        win32gui.PostMessage(self.input.hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, lparam)
-        time.sleep(0.05)
-        win32gui.PostMessage(self.input.hwnd, win32con.WM_LBUTTONUP, 0, lparam)
+        foreground_click(self.input.hwnd, x, y)
 
     def _get_skill_index(self, skill_name, job):
         """Get the visual position index of a skill in the skill window."""

@@ -24,7 +24,7 @@ class SanityChecker:
         self._last_check = 0
         self._last_frame = None
         self._stuck_count = 0
-        self._max_stuck = 5  # Consider stuck after 5 identical frames
+        self._max_stuck = 10  # Consider stuck after 10 identical frames (~5 min)
 
     def should_check(self):
         """Is it time for a sanity check?"""
@@ -75,7 +75,7 @@ class SanityChecker:
                 ),
             )
             similarity = 1.0 - (np.mean(diff) / 255.0)
-            if similarity > 0.98:  # 98% similar = basically identical
+            if similarity > 0.995:  # 99.5% similar = truly identical (even small mob movement changes this)
                 self._stuck_count += 1
                 if self._stuck_count >= self._max_stuck:
                     result["healthy"] = False
