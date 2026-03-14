@@ -280,16 +280,12 @@ class BotEngine:
                 self.state = BotState.GRINDING
                 continue
 
-            # Quest lightbulb check (every 20 ticks)
+            # Quest lightbulb check (every 20 ticks) — detection only, no auto-click
+            # Enable auto-click later by setting quests.auto_handle = True
             if self._tick_count % 20 == 0:
                 self.quests.update_level(self.level_up.level)
                 if self.quests.check_for_lightbulb(frame):
-                    self.state = BotState.QUESTING
-                    self._log("[Quest] Lightbulb detected! Handling quest...")
-                    self._release_all_keys()
-                    self.quests.handle_lightbulb(frame)
-                    self.state = BotState.GRINDING
-                    continue
+                    self._log("[Quest] Lightbulb detected — ignoring (auto-click disabled)")
 
             # Chat monitor (check every 10 ticks to save CPU)
             if self._tick_count % 10 == 0:
