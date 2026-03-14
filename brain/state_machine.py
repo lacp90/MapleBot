@@ -89,6 +89,10 @@ class BotEngine:
         self.mob_detector = MobDetector()
         self.chat_monitor = ChatMonitor(self.llm)
 
+        # Level-up handler (auto AP/SP allocation)
+        from brain.level_up import LevelUpHandler
+        self.level_up = LevelUpHandler(self.input, config)
+
         # State
         self.state = BotState.IDLE
         self._running = False
@@ -187,6 +191,14 @@ class BotEngine:
                 if exp > self._last_exp:
                     self._exp_gained += (exp - self._last_exp)
             self._last_exp = exp
+
+            # Level-up detection & auto AP/SP allocation
+            if exp >= 0:
+                leveled = self.level_up.handle_level_up(exp)
+                if leveled:
+                    self._log(f"[LEVEL UP!] Now level {self.level_up.level}!")
+                    self._log(f"[LEVEL UP] AP allocated to INT, SP to {self.level_up.stats['sp_distribution']}")
+                    continue
 
             # Step 3: Death detection
             if 0 <= hp < 1:

@@ -11,14 +11,24 @@ window:
   height: 768
 
 # -------------------------------------------
+# Character settings
+# -------------------------------------------
+character:
+  start_level: 7            # Current level when bot starts
+  class: "i/l mage"         # Class being played
+  ap_stat: "int"            # Where to put all AP (int for mages)
+  auto_ap: true             # Auto-assign AP on level up
+  auto_sp: true             # Auto-assign SP on level up
+
+# -------------------------------------------
 # Key bindings (must match in-game key config)
 # -------------------------------------------
 keys:
   attack: "ctrl"          # Basic attack / main skill
   loot: "z"               # Pick up items
   jump: "alt"             # Jump
-  pot_hp: "delete"        # HP potion
-  pot_mp: "end"           # MP potion
+  pot_hp: "v"             # HP potion
+  pot_mp: "c"             # MP potion
   # Skill slots (set these to match your in-game key layout)
   skill_1: "shift"        # Main AoE (e.g., Chain Lightning)
   skill_2: "a"            # Secondary skill
