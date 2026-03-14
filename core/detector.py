@@ -32,15 +32,15 @@ class Detection:
 # ============================================================
 
 # Bubblings: bright blue water drops
-BUBBLING_LOWER = np.array([95, 80, 140])
-BUBBLING_UPPER = np.array([120, 255, 255])
-BUBBLING_MIN_AREA = 200    # Minimum blob area in pixels
+BUBBLING_LOWER = np.array([90, 60, 120])
+BUBBLING_UPPER = np.array([125, 255, 255])
+BUBBLING_MIN_AREA = 300    # Minimum blob area in pixels
 BUBBLING_MAX_AREA = 5000   # Max blob area (filter out minimap)
 
 # Items / Mesos: yellow-gold glowing objects
-ITEM_LOWER = np.array([20, 100, 150])
+ITEM_LOWER = np.array([20, 120, 180])
 ITEM_UPPER = np.array([35, 255, 255])
-ITEM_MIN_AREA = 20
+ITEM_MIN_AREA = 40
 ITEM_MAX_AREA = 800
 
 # Ropes / Ladders: brown vertical elements
