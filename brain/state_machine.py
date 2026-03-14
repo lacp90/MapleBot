@@ -31,6 +31,7 @@ class BotState(Enum):
     DEAD = auto()       # Character died
     RECOVERING = auto() # Handling recovery (unstick, dismiss popup)
     TOWN_TRIP = auto()  # Going to town to sell/buy
+    QUESTING = auto()   # Handling quest dialog
     ERROR = auto()      # Something went wrong
 
 
@@ -98,6 +99,11 @@ class BotEngine:
         from brain.town_trip import TownTripManager
         self.town = TownTripManager(self.input, config, capture_window)
         self._town_enabled = config.get("town_trip", {}).get("enabled", True)
+
+        # Quest handler (lightbulb detection, NPC dialogs)
+        from brain.quests import QuestHandler
+        start_level = config.get("character", {}).get("start_level", 7)
+        self.quests = QuestHandler(self.input, config, level=start_level)
 
         # State
         self.state = BotState.IDLE
@@ -273,6 +279,17 @@ class BotEngine:
                     self._log("[Engine] Town trip failed — resuming anyway")
                 self.state = BotState.GRINDING
                 continue
+
+            # Quest lightbulb check (every 20 ticks)
+            if self._tick_count % 20 == 0:
+                self.quests.update_level(self.level_up.level)
+                if self.quests.check_for_lightbulb(frame):
+                    self.state = BotState.QUESTING
+                    self._log("[Quest] Lightbulb detected! Handling quest...")
+                    self._release_all_keys()
+                    self.quests.handle_lightbulb(frame)
+                    self.state = BotState.GRINDING
+                    continue
 
             # Chat monitor (check every 10 ticks to save CPU)
             if self._tick_count % 10 == 0:
